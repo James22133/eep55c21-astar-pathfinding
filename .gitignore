@@ -1,0 +1,14 @@
+# MATLAB editor and generated files
+*.asv
+*.m~
+*.autosave
+slprj/
+codegen/
+*.mex*
+matlab_crash_dump.*
+java.log.*
+
+# Local temporary and operating-system files
+tmp/
+.DS_Store
+Thumbs.db

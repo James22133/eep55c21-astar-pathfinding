@@ -16,7 +16,7 @@ We retained the four-connected Von Neumann neighbourhood. The maze has narrow co
 
 The grid uses `0` for free cells and `1` for obstacles. Coordinates are stored as `[row,column]`; row 1 appears at the top. A* selects the open cell with the lowest cumulative cost plus Manhattan distance and stores parent cells to reconstruct the route. Validation checks endpoints, integer grid bounds, blocked cells and unit four-connected steps.
 
-Each obstacle case reloads the original map. The agent follows its initial route to `[9,7]`, the obstacle is introduced, and only the remaining route is checked. Invalid routes are discarded and replanned from the current cell. The programme also reports an empty result cleanly when no route exists.
+Each obstacle case reloads the original map. The agent follows its initial route to `[9,7]`, the obstacle is introduced, and only the remaining route is checked. Invalid routes are discarded and replanned from the current cell.
 
 ![Original map and calculated route](assets/original-route.png)
 
@@ -35,7 +35,11 @@ Executed in MATLAB R2024b with the supplied A* implementation:
 |---|---|---|
 | ![Case 1 result](assets/case-1-result.png) | ![Case 2 result](assets/case-2-result.png) | ![Case 3 result](assets/case-3-result.png) |
 
-The extra retention test introduces Case 1 after the agent has passed the blocked cells and correctly keeps the valid route. The unreachable-goal test blocks all crossings and returns no route without attempting movement.
+In these final frames, grey shows the route already travelled, the orange diamond marks the replanning cell and blue shows the valid continuation.
+
+![Animated Case 2 journey](assets/case-2-full-journey.gif)
+
+The retention test adds Case 1 behind the agent and correctly keeps the valid route. The unreachable-goal test blocks all crossings and returns no route without attempting movement.
 
 ## Limitations and Assignment 4
 
@@ -43,4 +47,4 @@ This simulation assumes a known discrete map and ideal cell-to-cell movement. It
 
 ## Running the code
 
-Open `Assignment3_AStar.m` in MATLAB R2024b and select **Run** to reproduce the original map, all three independent obstacle cases and both extra tests. No additional toolboxes or files are required. Parts 7 and 8 can also be run as sections after their stated prerequisites. Set `CPS_NO_ANIMATION=1` for headless verification and `CPS_EXPORT_ASSETS=1` to regenerate the figures in `assets/`.
+Open `Assignment3_AStar.m` in MATLAB R2024b and select **Run** to reproduce the original map, all three independent obstacle cases and both extra tests. No additional toolboxes or files are required. Parts 7 and 8 can also be run as sections after their stated prerequisites. Set `CPS_NO_ANIMATION=1` for headless verification, `CPS_EXPORT_ASSETS=1` to regenerate the figures and `CPS_EXPORT_GIF=1` to rebuild the animation.

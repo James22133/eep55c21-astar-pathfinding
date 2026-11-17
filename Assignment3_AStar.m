@@ -48,7 +48,6 @@ for scenario = 1:3
     cpsDrawGrid(gca,updated,startRC,goalRC,[],[],added);
     title(sprintf('Case %d, %d new blocked cells',scenario,nnz(added)));
 end
-cpsMaybeExport(gcf,'scenario-maps.png');
 
 %% PART 4 - Case 1: interrupt journey and replan if necessary
 cpsRunPrescribedScenario(1,animateScenarios,[9,7]);
@@ -77,7 +76,6 @@ fprintf('Unreachable goal: A* correctly returned no route (%d cells expanded).\n
 figure('Name','Assignment 3 A* - Unreachable goal test');
 cpsDrawGrid(gca,noRouteMap,s,g,[],[],noRouteMap==1 & baseMap==0);
 title('Extra test: no route exists');
-cpsMaybeExport(gcf,'unreachable-goal.png');
 
 %% LOCAL FUNCTIONS - these are called by the sections above
 
@@ -236,12 +234,15 @@ function [ok, reason] = cpsValidateRoute(map,path,startRC,goalRC)
     ok = true; reason = 'Route valid.';
 end
 
-function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked,invalidRoute)
+function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked, ...
+        invalidRoute,travelledRoute,replanRC)
     % Map coordinates in [row,col]; plot coordinates in (column,row).
     if nargin<5, path=[]; end
     if nargin<6, currentRC=[]; end
     if nargin<7, newBlocked=false(size(map)); end
     if nargin<8, invalidRoute=[]; end
+    if nargin<9, travelledRoute=[]; end
+    if nargin<10, replanRC=[]; end
 
     cla(ax);
     imagesc(ax,map);
@@ -269,6 +270,11 @@ function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked,invalidRout
         rectangle(ax,'Position',[newC(j)-0.5,newR(j)-0.5,1,1], ...
             'FaceColor',[0.85 0.2 0.2],'EdgeColor',[0.7 0.7 0.7]);
     end
+    if ~isempty(travelledRoute)
+        % Grey underlay shows the route already travelled before replanning.
+        plot(ax,travelledRoute(:,2),travelledRoute(:,1),'-', ...
+            'Color',[0.55 0.55 0.55],'LineWidth',5);
+    end
     if ~isempty(invalidRoute)
         % Dashed red means INVALIDATED route; never followed after update.
         plot(ax,invalidRoute(:,2),invalidRoute(:,1),'--', ...
@@ -287,6 +293,11 @@ function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked,invalidRout
     if ~isempty(currentRC)
         plot(ax,currentRC(2),currentRC(1),'mo', ...
             'MarkerFaceColor','none','LineWidth',2,'MarkerSize',10);
+    end
+    if ~isempty(replanRC)
+        plot(ax,replanRC(2),replanRC(1),'d', ...
+            'MarkerEdgeColor',[0.85 0.3 0], ...
+            'MarkerFaceColor',[1 0.7 0.15],'LineWidth',1.5,'MarkerSize',8);
     end
     xlabel(ax,'Column (x)'); ylabel(ax,'Row (y, increasing downwards)');
     hold(ax,'off');
@@ -309,21 +320,31 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
     fig = figure('Name',sprintf('A* Case %d, stop [%d,%d]', ...
         scenario,stopRC(1),stopRC(2)));
     ax = axes('Parent',fig);
+    writeGif = strcmp(getenv('CPS_EXPORT_GIF'),'1') && ...
+        scenario==2 && isequal(stopRC,[9,7]);
+    gifFile = '';
+    if writeGif
+        gifFile = cpsPrepareGif('case-2-full-journey.gif');
+    end
     cpsDrawGrid(ax,baseMap,startRC,goalRC,originalRoute,startRC);
     title(ax,sprintf('Case %d: initial A* path (%d moves)', ...
         scenario,size(originalRoute,1)-1));
     drawnow;
+    if writeGif, cpsAppendGif(fig,gifFile,0.35,true); end
 
     % Move along the initial route until the intermediate free cell.
     for k = 2:stopIdx
-        if animate
+        if animate || writeGif
             cpsDrawGrid(ax,baseMap,startRC,goalRC,originalRoute,originalRoute(k,:));
             title(ax,sprintf('Case %d: initial progress (%d/%d)', ...
                 scenario,k-1,stopIdx-1));
-            drawnow; pause(0.08);
+            drawnow;
+            if writeGif, cpsAppendGif(fig,gifFile,0.10,false); end
+            if animate, pause(0.08); end
         end
     end
     currentRC = originalRoute(stopIdx,:);
+    travelledRoute = originalRoute(1:stopIdx,:);
 
     % Introduce only the actual prescribed obstacle AFTER movement.
     updatedMap = cpsApplyPrescribedObstacle(baseMap,scenario);
@@ -359,14 +380,16 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
     fprintf('  %s\n',outcome);
 
     if remainingValid
-        cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC,newBlocked);
+        cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC, ...
+            newBlocked,[],travelledRoute,currentRC);
     else
         % Red dashed means the discarded route, NOT a usable path.
         cpsDrawGrid(ax,updatedMap,startRC,goalRC,[],currentRC, ...
-            newBlocked,remaining);
+            newBlocked,remaining,travelledRoute,currentRC);
     end
     title(ax,sprintf('Case %d: %s',scenario,outcome));
     drawnow;
+    if writeGif, cpsAppendGif(fig,gifFile,0.8,false); end
     if animate, pause(0.5); end
 
     if isempty(newRoute)
@@ -380,29 +403,58 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
     fprintf('  Remaining route: %d moves, %d A* cells expanded.\n', ...
         movesAfter,expandedAfter);
     fprintf('  Total travel: %d moves.\n',movesBefore+movesAfter);
-    cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC,newBlocked);
+    cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC, ...
+        newBlocked,[],travelledRoute,currentRC);
     title(ax,sprintf('Case %d: valid continuation (%d moves remaining)', ...
         scenario,movesAfter));
     drawnow;
+    if writeGif, cpsAppendGif(fig,gifFile,0.8,false); end
 
     for k = 2:size(newRoute,1)
         nextRC = newRoute(k,:);
         assert(updatedMap(nextRC(1),nextRC(2))==0, ...
             'Agent tried to move through an obstacle.');
-        if animate
-            cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,nextRC,newBlocked);
+        if animate || writeGif
+            cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,nextRC, ...
+                newBlocked,[],travelledRoute,currentRC);
             title(ax,sprintf('Case %d: continuing (%d/%d)', ...
                 scenario,k-1,movesAfter));
-            drawnow; pause(0.08);
+            drawnow;
+            if writeGif, cpsAppendGif(fig,gifFile,0.10,false); end
+            if animate, pause(0.08); end
         end
     end
-    cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,goalRC,newBlocked);
+    cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,goalRC, ...
+        newBlocked,[],travelledRoute,currentRC);
     title(ax,sprintf('Case %d: GOAL reached. %d total moves.', ...
         scenario,movesBefore+movesAfter));
+    if writeGif, cpsAppendGif(fig,gifFile,1.2,false); end
     if isequal(stopRC,[9,7])
         cpsMaybeExport(fig,sprintf('case-%d-result.png',scenario));
+    end
+end
+
+function gifFile = cpsPrepareGif(fileName)
+    assetsDir = fullfile(fileparts(mfilename('fullpath')),'assets');
+    if ~isfolder(assetsDir)
+        mkdir(assetsDir);
+    end
+    gifFile = fullfile(assetsDir,fileName);
+    if isfile(gifFile)
+        delete(gifFile);
+    end
+end
+
+function cpsAppendGif(fig,gifFile,delayTime,firstFrame)
+    drawnow;
+    frame = getframe(fig);
+    [indexedImage,colourMap] = rgb2ind(frame2im(frame),256);
+    if firstFrame
+        imwrite(indexedImage,colourMap,gifFile,'gif', ...
+            'LoopCount',inf,'DelayTime',delayTime);
     else
-        cpsMaybeExport(fig,'route-retention-test.png');
+        imwrite(indexedImage,colourMap,gifFile,'gif', ...
+            'WriteMode','append','DelayTime',delayTime);
     end
 end
 

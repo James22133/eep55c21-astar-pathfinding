@@ -6,11 +6,25 @@ We built a MATLAB simulation of an agent moving from `S` to `G` through the pres
 
 ## Design choices
 
-We first considered breadth-first search because Lab 10 supplied a working version and every allowed move costs one. BFS would be fully sufficient here and guarantees a shortest path on this unweighted grid. We chose A* to combine the travelled cost `g(n)` with an estimate of the remaining cost `h(n)`, giving `f(n) = g(n) + h(n)`. Our heuristic is Manhattan distance because movement is limited to horizontal and vertical unit steps. It is admissible and consistent for this model.
+### Pathfinding algorithm
 
-A* adds open-set, score and tie-breaking logic that BFS does not need. We accepted that extra complexity because the structure is useful for later problems with larger environments or varied movement costs. We did not benchmark A* against BFS on this map, so we make no speed claim for this assignment.
+We initially considered BFS, which was introduced in Lab 10 and is well suited to this small unweighted grid. Since every permitted move costs one, BFS guarantees a shortest path without needing a heuristic.
 
-We retained the four-connected Von Neumann neighbourhood. The maze has narrow corridors and sharp corners, and axial movement makes route validity unambiguous without diagonal corner-cutting. Moore movement could create shorter geometric routes and better reflect a drone's diagonal freedom, but it would need diagonal costs, a matching heuristic and explicit corner rules. A legal diagonal grid step also says nothing about physical Crazyflie clearance. Four-connected paths can be less direct and contain more turns, but this is a deliberate Assignment 3 simplification rather than a universal safety rule.
+We chose A* because Assignment 4 will extend this work to physical Crazyflie navigation. Rather than exploring in successive layers, A* prioritises cells using the travelled cost and an estimate of the remaining distance:
+
+$$
+f(n) = g(n) + h(n)
+$$
+
+This goal-directed structure is useful for larger or more complex environments and could later support varied movement costs with an appropriate heuristic. The tradeoff is additional cost tracking and priority selection. BFS remains equally capable of finding an optimal route here, so we chose A* for extensibility rather than a claimed immediate performance advantage.
+
+### Von Neumann versus Moore
+
+Moore initially seemed appropriate for a drone because diagonal movement could produce shorter routes. However, the maze's narrow corridors create corner-cutting concerns, especially once physical clearance and localisation error matter.
+
+We therefore retained the four-connected Von Neumann neighbourhood. Horizontal and vertical unit steps make route validation straightforward and allow Manhattan distance to remain an admissible and consistent A* heuristic.
+
+This can produce longer routes with sharper turns. Moore movement could be investigated for physical flight, but it would require diagonal costs, an octile-distance heuristic and explicit clearance checks. Von Neumann gives us a simpler, verifiable starting point without treating a valid grid route as automatically safe for the drone.
 
 ## Implementation
 

@@ -47,4 +47,4 @@ This simulation assumes a known discrete map and ideal cell-to-cell movement. It
 
 ## Running the code
 
-Open `Assignment3_AStar.m` in MATLAB R2024b and select **Run** to reproduce the original map, all three independent obstacle cases and both extra tests. No additional toolboxes or files are required. Parts 7 and 8 can also be run as sections after their stated prerequisites. Set `CPS_NO_ANIMATION=1` for headless verification, `CPS_EXPORT_ASSETS=1` to regenerate the figures and `CPS_EXPORT_GIF=1` to rebuild the animation.
+Open `Assignment3_AStar.m` in MATLAB R2024b and select **Run** to reproduce the original map, all three independent obstacle cases and both extra tests. No additional toolboxes or files are required. Parts 6 and 7 can also be run independently. Set `CPS_NO_ANIMATION=1` for headless verification.

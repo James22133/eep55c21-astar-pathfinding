@@ -1,98 +1,77 @@
-%% EEP55C21 ASSIGNMENT 3 - A* PATHFINDING SIMULATION
-% MATLAB R2024b. One self-contained script. No toolbox or GUI required.
-% Based on the prescribed Assignment 3 map and the A* method in Lab 10.
+%% eep55c21 assignment 3 - a* pathfinding simulation
+% this is one self-contained matlab r2024b script with no toolbox or gui needed.
+% it uses the prescribed assignment 3 map and the a* method introduced in lab 10.
 %
-% Run the full file or work through the numbered sections with Ctrl+Enter.
-% Run Part 1 before Parts 2 and 3. Parts 4-8 work independently.
+% you can run the whole file, or step through the sections with ctrl+enter.
+% run part 1 before part 2. parts 3 to 7 can each run on their own.
 %
-% Map: map(row,column), 0 = free, 1 = blocked.
-% Start: [15,2]. Goal: [15,15]. Row 1 is displayed at the top.
-% Movement: four neighbours only (up/down/left/right), cost 1 per step.
-% A*: f(n) = g(n) + h(n), with Manhattan distance as h(n).
-% This heuristic is admissible and consistent for unit-cost 4-way movement.
-% Path is N x 2 [row,column]; cost is size(path,1)-1 moves.
-% Each prescribed obstacle case begins with the ORIGINAL map.
+% the map uses 0 for free cells and 1 for blocked cells.
+% the start is [15,2], the goal is [15,15], and row 1 appears at the top.
+% movement uses four neighbours with a cost of 1 for every step.
+% a* uses f(n) = g(n) + h(n), where h(n) is manhattan distance.
+% each path is stored as [row,column], and every obstacle case starts fresh.
 
-%% PART 1 - Reproduce the prescribed 16 x 16 maze (Figure 1)
+%% part 1 - load the prescribed 16 x 16 maze
 clearvars; close all; clc;
 animateScenarios = ~strcmp(getenv('CPS_NO_ANIMATION'),'1');
 [map,startRC,goalRC] = cpsPrescribedMap();
-figure('Name','Assignment 3 A* - Original map');
-cpsDrawGrid(gca,map,startRC,goalRC);
-title('Original prescribed map');
 fprintf('Original map loaded. S=[%d,%d], G=[%d,%d].\n', ...
     startRC(1),startRC(2),goalRC(1),goalRC(2));
 
-%% PART 2 - Calculate and validate the initial A* route
-[found,path,searchStats] = cpsAStar(map,startRC,goalRC);
+%% part 2 - calculate and validate the initial a* route
+[found,path] = cpsAStar(map,startRC,goalRC);
 assert(found,'A* did not find a route on the original map.');
 [valid,reason] = cpsValidateRoute(map,path,startRC,goalRC);
 assert(valid,reason);
 moveCount = size(path,1)-1;
 assert(moveCount == 25,'Original map should have an optimal 25-move route.');
-fprintf('Initial A* route: %d moves, %d cells expanded.\n', ...
-    moveCount,searchStats.expanded);
+fprintf('Initial A* route: %d moves.\n',moveCount);
 figure('Name','Assignment 3 A* - Initial route');
 cpsDrawGrid(gca,map,startRC,goalRC,path,startRC);
 title(sprintf('A* shortest path: %d moves',moveCount));
-cpsMaybeExport(gcf,'original-route.png');
 
-%% PART 3 - Inspect all three prescribed obstacle maps
-% Preview only. The actual simulation changes the map AFTER movement.
-figure('Name','Assignment 3 A* - Prescribed maps', ...
-    'Position',[100 100 1200 420]);
-for scenario = 1:3
-    updated = cpsApplyPrescribedObstacle(map,scenario);
-    added = updated==1 & map==0;
-    subplot(1,3,scenario);
-    cpsDrawGrid(gca,updated,startRC,goalRC,[],[],added);
-    title(sprintf('Case %d, %d new blocked cells',scenario,nnz(added)));
-end
-
-%% PART 4 - Case 1: interrupt journey and replan if necessary
+%% part 3 - run case 1 and replan only if the route is blocked
 cpsRunPrescribedScenario(1,animateScenarios,[9,7]);
 
-%% PART 5 - Case 2: reset original map and run independently
+%% part 4 - reset the map and run case 2 independently
 cpsRunPrescribedScenario(2,animateScenarios,[9,7]);
 
-%% PART 6 - Case 3: reset original map and run independently
+%% part 5 - reset the map and run case 3 independently
 cpsRunPrescribedScenario(3,animateScenarios,[9,7]);
 
-%% PART 7 - Extra validation: obstacle is BEHIND the robot
-% Case 1 is unchanged, but the obstacle appears when the robot reaches
-% [9,10], after it has passed the newly blocked cells. No replan needed.
+%% part 6 - check that a route is kept when the obstacle is behind the agent
+% case 1 appears after the agent reaches [9,10], so the remaining route is safe.
 cpsRunPrescribedScenario(1,animateScenarios,[9,10]);
 
-%% PART 8 - Extra validation: all crossings blocked means NO ROUTE
-% This is a robustness test, NOT a fourth prescribed obstacle scenario.
+%% part 7 - check that blocking every crossing gives no route
+% this is just a robustness check, not another prescribed obstacle case.
 [baseMap,s,g] = cpsPrescribedMap();
 noRouteMap = baseMap;
 noRouteMap([2,5,9],8:9) = 1;
-[found,failedPath,testStats] = cpsAStar(noRouteMap,s,g);
+[found,failedPath] = cpsAStar(noRouteMap,s,g);
 assert(~found && isempty(failedPath), ...
     'A* should report no route when all crossings are blocked.');
-fprintf('Unreachable goal: A* correctly returned no route (%d cells expanded).\n', ...
-    testStats.expanded);
+fprintf('Unreachable goal: A* correctly returned no route.\n');
 figure('Name','Assignment 3 A* - Unreachable goal test');
 cpsDrawGrid(gca,noRouteMap,s,g,[],[],noRouteMap==1 & baseMap==0);
 title('Extra test: no route exists');
 
-%% LOCAL FUNCTIONS - these are called by the sections above
+%% local functions used by the sections above
 
 function [map,startRC,goalRC] = cpsPrescribedMap()
-    % Assignment 3 Fig. 1, MATLAB row 1 at TOP of display.
+    % we build the exact map from figure 1, with row 1 shown at the top.
     map = ones(16,16);
-    map(2:15,2)  = 0;      % Left vertical corridor
-    map(2:15,15) = 0;      % Right vertical corridor
-    map(2,2:15)  = 0;      % Top crossing
-    map(5,2:15)  = 0;      % Middle crossing
-    map(9,2:15)  = 0;      % Lower crossing
+    map(2:15,2)  = 0;      % this opens the left corridor
+    map(2:15,15) = 0;      % this opens the right corridor
+    map(2,2:15)  = 0;      % this is the top crossing
+    map(5,2:15)  = 0;      % this is the middle crossing
+    map(9,2:15)  = 0;      % this is the lower crossing
     startRC = [15,2];
     goalRC  = [15,15];
 end
 
 function updatedMap = cpsApplyPrescribedObstacle(originalMap,scenario)
-    % Assignment 3 Fig. 2: independent modifications to original map.
+    % each case starts from the original map and adds only its prescribed cells.
     updatedMap = originalMap;
     switch scenario
         case 1
@@ -108,18 +87,15 @@ function updatedMap = cpsApplyPrescribedObstacle(originalMap,scenario)
     end
 end
 
-function [found,path,stats] = cpsAStar(map,startRC,goalRC)
-    % A* from Lab 10 sections 1.5 and 2, implemented for our 4-way grid.
-    % g: actual cost from start. h: Manhattan distance to goal.
-    % f = g+h. Lowest-f open cell is explored next.
-    % A logical open set is sufficient on a small 16x16 grid.
+function [found,path] = cpsAStar(map,startRC,goalRC)
+    % this is lab 10 a* adapted to our four-connected grid.
+    % g stores the cost travelled, h estimates what is left, and f is their sum.
+    % a logical open set keeps this small 16 x 16 implementation easy to follow.
     found = false;
     path = [];
-    stats.expanded = 0;
-    stats.discovered = 0;
     [nRows,nCols] = size(map);
 
-    % Reject invalid or blocked start/goal cells before indexing the map.
+    % we check the endpoints first so bad inputs never reach matrix indexing.
     if numel(startRC)~=2 || numel(goalRC)~=2 || ...
             any(~isfinite([startRC goalRC])) || ...
             any([startRC goalRC] ~= round([startRC goalRC])) || ...
@@ -143,20 +119,18 @@ function [found,path,stats] = cpsAStar(map,startRC,goalRC)
     gScore(startRC(1),startRC(2)) = 0;
     fScore(startRC(1),startRC(2)) = sum(abs(startRC-goalRC));
     inOpen(startRC(1),startRC(2)) = true;
-    stats.discovered = 1;
 
     while any(inOpen(:))
-        % Find the open cell with the smallest f value.
+        % we always expand the open cell with the lowest estimated total cost.
         candidates = find(inOpen);
         bestF = min(fScore(candidates));
         ties = candidates(fScore(candidates)==bestF);
-        % Tie-break: favour larger g. This does not affect optimality.
+        % when f ties, a larger g gently favours progress without changing optimality.
         [~,choice] = max(gScore(ties));
         currentIdx = ties(choice);
         [r,c] = ind2sub(size(map),currentIdx);
         inOpen(r,c) = false;
         closed(r,c) = true;
-        stats.expanded = stats.expanded + 1;
 
         if isequal([r,c],goalRC)
             found = true;
@@ -180,10 +154,7 @@ function [found,path,stats] = cpsAStar(map,startRC,goalRC)
                 gScore(nr,nc) = tentativeG;
                 h = abs(nr-goalRC(1)) + abs(nc-goalRC(2));
                 fScore(nr,nc) = tentativeG+h;
-                if ~inOpen(nr,nc) && ~closed(nr,nc)
-                    stats.discovered = stats.discovered + 1;
-                end
-                % Reopening is safe if a shorter route is later found.
+                % we reopen a cell if this route reaches it more cheaply.
                 closed(nr,nc) = false;
                 inOpen(nr,nc) = true;
             end
@@ -191,24 +162,26 @@ function [found,path,stats] = cpsAStar(map,startRC,goalRC)
     end
 
     if ~found
-        return; % Empty path means goal is unreachable.
+        return; % an empty path is how we report an unreachable goal.
     end
 
-    % Follow the stored predecessors backwards from goal to start.
+    % now we walk backwards through the saved parents to rebuild the route.
     current = goalRC;
-    path = current;
-    while ~isequal(current,startRC)
-        r = current(1); c = current(2);
-        current = [parentRow(r,c),parentCol(r,c)];
-        if any(current==0)
-            found = false; path = []; return;
+    path = zeros(gScore(goalRC(1),goalRC(2))+1,2);
+    for pathIndex = size(path,1):-1:1
+        path(pathIndex,:) = current;
+        if pathIndex > 1
+            r = current(1); c = current(2);
+            current = [parentRow(r,c),parentCol(r,c)];
+            if any(current==0)
+                found = false; path = []; return;
+            end
         end
-        path = [current;path]; %#ok<AGROW>
     end
 end
 
 function [ok, reason] = cpsValidateRoute(map,path,startRC,goalRC)
-    % Check endpoints, in-bounds, free cells, and single-step movements.
+    % this check keeps plotting and movement separate from trusting the planner.
     ok = false;
     if isempty(path) || size(path,2) ~= 2
         reason = 'Path is empty or incorrectly shaped.'; return;
@@ -236,7 +209,7 @@ end
 
 function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked, ...
         invalidRoute,travelledRoute,replanRC)
-    % Map coordinates in [row,col]; plot coordinates in (column,row).
+    % paths use [row,column], so we swap them when plotting x and y.
     if nargin<5, path=[]; end
     if nargin<6, currentRC=[]; end
     if nargin<7, newBlocked=false(size(map)); end
@@ -254,7 +227,7 @@ function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked, ...
     set(ax,'YDir','reverse','XTick',1:size(map,2),'YTick',1:size(map,1));
     hold(ax,'on');
 
-    % TRUE cell boundaries at half-integers, unlike the misleading grid on ticks.
+    % half-integer lines put the grid around cells rather than through their centres.
     for k=0.5:1:size(map,2)+0.5
         plot(ax,[k k],[0.5 size(map,1)+0.5], ...
             'Color',[0.7 0.7 0.7],'LineWidth',0.35);
@@ -264,19 +237,19 @@ function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked, ...
             'Color',[0.7 0.7 0.7],'LineWidth',0.35);
     end
 
-    % Clearly distinguish newly blocked cells from original black cells.
+    % red cells make the new obstruction easy to separate from the original walls.
     [newR,newC] = find(newBlocked);
     for j=1:numel(newR)
         rectangle(ax,'Position',[newC(j)-0.5,newR(j)-0.5,1,1], ...
             'FaceColor',[0.85 0.2 0.2],'EdgeColor',[0.7 0.7 0.7]);
     end
     if ~isempty(travelledRoute)
-        % Grey underlay shows the route already travelled before replanning.
+        % grey shows where the agent travelled before the map changed.
         plot(ax,travelledRoute(:,2),travelledRoute(:,1),'-', ...
             'Color',[0.55 0.55 0.55],'LineWidth',5);
     end
     if ~isempty(invalidRoute)
-        % Dashed red means INVALIDATED route; never followed after update.
+        % dashed red shows the discarded route, so it is never mistaken for a safe one.
         plot(ax,invalidRoute(:,2),invalidRoute(:,1),'--', ...
             'Color',[0.9 0.2 0.2],'LineWidth',2);
     end
@@ -304,15 +277,15 @@ function cpsDrawGrid(ax,map,startRC,goalRC,path,currentRC,newBlocked, ...
 end
 
 function cpsRunPrescribedScenario(scenario,animate,stopRC)
-    % The obstacle is applied ONLY AFTER the robot reaches stopRC.
-    % The initial route is computed on the original map each time.
+    % every case begins again on the original map.
+    % the new obstacle only appears after the agent reaches stoprc.
     [baseMap,startRC,goalRC] = cpsPrescribedMap();
-    [found,originalRoute,initialStats] = cpsAStar(baseMap,startRC,goalRC);
+    [found,originalRoute] = cpsAStar(baseMap,startRC,goalRC);
     assert(found,'No initial route found.');
     [ok,why] = cpsValidateRoute(baseMap,originalRoute,startRC,goalRC);
     assert(ok,why);
 
-    % Choose the stopping position independently of the future map update.
+    % we choose the stopping point on the original route before changing the map.
     stopIdx = find(all(originalRoute==stopRC,2),1,'first');
     assert(~isempty(stopIdx) && stopIdx>1 && stopIdx<size(originalRoute,1), ...
         'Intermediate position must be on the initial route before the goal.');
@@ -320,49 +293,38 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
     fig = figure('Name',sprintf('A* Case %d, stop [%d,%d]', ...
         scenario,stopRC(1),stopRC(2)));
     ax = axes('Parent',fig);
-    writeGif = strcmp(getenv('CPS_EXPORT_GIF'),'1') && ...
-        scenario==2 && isequal(stopRC,[9,7]);
-    gifFile = '';
-    if writeGif
-        gifFile = cpsPrepareGif('case-2-full-journey.gif');
-    end
     cpsDrawGrid(ax,baseMap,startRC,goalRC,originalRoute,startRC);
     title(ax,sprintf('Case %d: initial A* path (%d moves)', ...
         scenario,size(originalRoute,1)-1));
     drawnow;
-    if writeGif, cpsAppendGif(fig,gifFile,0.35,true); end
 
-    % Move along the initial route until the intermediate free cell.
+    % first we follow the route that was planned on the unchanged map.
     for k = 2:stopIdx
-        if animate || writeGif
+        if animate
             cpsDrawGrid(ax,baseMap,startRC,goalRC,originalRoute,originalRoute(k,:));
             title(ax,sprintf('Case %d: initial progress (%d/%d)', ...
                 scenario,k-1,stopIdx-1));
-            drawnow;
-            if writeGif, cpsAppendGif(fig,gifFile,0.10,false); end
-            if animate, pause(0.08); end
+            drawnow; pause(0.08);
         end
     end
     currentRC = originalRoute(stopIdx,:);
     travelledRoute = originalRoute(1:stopIdx,:);
 
-    % Introduce only the actual prescribed obstacle AFTER movement.
+    % at the stopping point, the complete prescribed map update becomes known.
     updatedMap = cpsApplyPrescribedObstacle(baseMap,scenario);
     newBlocked = updatedMap==1 & baseMap==0;
     assert(updatedMap(currentRC(1),currentRC(2))==0, ...
         'The intermediate position became blocked.');
 
-    % Validate the remaining original route before deciding to replan.
+    % we only replan if the part still ahead has genuinely become invalid.
     remaining = originalRoute(stopIdx:end,:);
     [remainingValid,reason] = cpsValidateRoute( ...
         updatedMap,remaining,currentRC,goalRC);
     if remainingValid
         newRoute = remaining;
         outcome = 'Route remains valid. No replanning required.';
-        expandedAfter = 0;
     else
-        [found,newRoute,replanStats] = cpsAStar(updatedMap,currentRC,goalRC);
-        expandedAfter = replanStats.expanded;
+        [found,newRoute] = cpsAStar(updatedMap,currentRC,goalRC);
         if found
             [ok,why] = cpsValidateRoute(updatedMap,newRoute,currentRC,goalRC);
             assert(ok,why);
@@ -373,8 +335,7 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
     end
 
     fprintf('\nCase %d, stop [%d,%d]\n',scenario,currentRC(1),currentRC(2));
-    fprintf('  Initial route: %d moves, %d cells expanded.\n', ...
-        size(originalRoute,1)-1,initialStats.expanded);
+    fprintf('  Initial route: %d moves.\n',size(originalRoute,1)-1);
     fprintf('  Remaining route valid: %s (%s)\n', ...
         mat2str(remainingValid),reason);
     fprintf('  %s\n',outcome);
@@ -383,13 +344,12 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
         cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC, ...
             newBlocked,[],travelledRoute,currentRC);
     else
-        % Red dashed means the discarded route, NOT a usable path.
+        % the dashed red line is only evidence of why replanning was needed.
         cpsDrawGrid(ax,updatedMap,startRC,goalRC,[],currentRC, ...
             newBlocked,remaining,travelledRoute,currentRC);
     end
     title(ax,sprintf('Case %d: %s',scenario,outcome));
     drawnow;
-    if writeGif, cpsAppendGif(fig,gifFile,0.8,false); end
     if animate, pause(0.5); end
 
     if isempty(newRoute)
@@ -400,73 +360,28 @@ function cpsRunPrescribedScenario(scenario,animate,stopRC)
 
     movesBefore = stopIdx-1;
     movesAfter = size(newRoute,1)-1;
-    fprintf('  Remaining route: %d moves, %d A* cells expanded.\n', ...
-        movesAfter,expandedAfter);
+    fprintf('  Remaining route: %d moves.\n',movesAfter);
     fprintf('  Total travel: %d moves.\n',movesBefore+movesAfter);
     cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,currentRC, ...
         newBlocked,[],travelledRoute,currentRC);
     title(ax,sprintf('Case %d: valid continuation (%d moves remaining)', ...
         scenario,movesAfter));
     drawnow;
-    if writeGif, cpsAppendGif(fig,gifFile,0.8,false); end
 
     for k = 2:size(newRoute,1)
         nextRC = newRoute(k,:);
         assert(updatedMap(nextRC(1),nextRC(2))==0, ...
             'Agent tried to move through an obstacle.');
-        if animate || writeGif
+        if animate
             cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,nextRC, ...
                 newBlocked,[],travelledRoute,currentRC);
             title(ax,sprintf('Case %d: continuing (%d/%d)', ...
                 scenario,k-1,movesAfter));
-            drawnow;
-            if writeGif, cpsAppendGif(fig,gifFile,0.10,false); end
-            if animate, pause(0.08); end
+            drawnow; pause(0.08);
         end
     end
     cpsDrawGrid(ax,updatedMap,startRC,goalRC,newRoute,goalRC, ...
         newBlocked,[],travelledRoute,currentRC);
     title(ax,sprintf('Case %d: GOAL reached. %d total moves.', ...
         scenario,movesBefore+movesAfter));
-    if writeGif, cpsAppendGif(fig,gifFile,1.2,false); end
-    if isequal(stopRC,[9,7])
-        cpsMaybeExport(fig,sprintf('case-%d-result.png',scenario));
-    end
-end
-
-function gifFile = cpsPrepareGif(fileName)
-    assetsDir = fullfile(fileparts(mfilename('fullpath')),'assets');
-    if ~isfolder(assetsDir)
-        mkdir(assetsDir);
-    end
-    gifFile = fullfile(assetsDir,fileName);
-    if isfile(gifFile)
-        delete(gifFile);
-    end
-end
-
-function cpsAppendGif(fig,gifFile,delayTime,firstFrame)
-    drawnow;
-    frame = getframe(fig);
-    [indexedImage,colourMap] = rgb2ind(frame2im(frame),256);
-    if firstFrame
-        imwrite(indexedImage,colourMap,gifFile,'gif', ...
-            'LoopCount',inf,'DelayTime',delayTime);
-    else
-        imwrite(indexedImage,colourMap,gifFile,'gif', ...
-            'WriteMode','append','DelayTime',delayTime);
-    end
-end
-
-function cpsMaybeExport(fig,fileName)
-    % Set CPS_EXPORT_ASSETS=1 to reproduce the README figures.
-    if ~strcmp(getenv('CPS_EXPORT_ASSETS'),'1')
-        return;
-    end
-    drawnow;
-    assetsDir = fullfile(fileparts(mfilename('fullpath')),'assets');
-    if ~isfolder(assetsDir)
-        mkdir(assetsDir);
-    end
-    exportgraphics(fig,fullfile(assetsDir,fileName),'Resolution',180);
 end

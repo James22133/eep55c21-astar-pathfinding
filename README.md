@@ -8,9 +8,7 @@ We built a MATLAB simulation of an agent moving from `S` to `G` through the pres
 
 ### Pathfinding algorithm
 
-We initially considered BFS, which was introduced in Lab 10 and is well suited to this small unweighted grid. Since every permitted move costs one, BFS guarantees a shortest path without needing a heuristic.
-
-We chose A* because Assignment 4 will extend this work to physical Crazyflie navigation. Rather than exploring in successive layers, A* prioritises cells using the travelled cost and an estimate of the remaining distance:
+We initially considered BFS, which was introduced in Lab 10 and is well suited to this small unweighted grid. Since every permitted move costs one, BFS guarantees a shortest path without needing a heuristic. We chose A* because Assignment 4 will extend this work to physical Crazyflie navigation. Rather than exploring in successive layers, A* prioritises cells using the travelled cost and an estimate of the remaining distance:
 
 $$
 f(n) = g(n) + h(n)
@@ -20,11 +18,7 @@ This goal-directed structure is useful for larger or more complex environments a
 
 ### Von Neumann versus Moore
 
-Moore initially seemed appropriate for a drone because diagonal movement could produce shorter routes. However, the maze's narrow corridors create corner-cutting concerns, especially once physical clearance and localisation error matter.
-
-We therefore retained the four-connected Von Neumann neighbourhood. Horizontal and vertical unit steps make route validation straightforward and allow Manhattan distance to remain an admissible and consistent A* heuristic.
-
-This can produce longer routes with sharper turns. Moore movement could be investigated for physical flight, but it would require diagonal costs, an octile-distance heuristic and explicit clearance checks. Von Neumann gives us a simpler, verifiable starting point without treating a valid grid route as automatically safe for the drone.
+Moore initially seemed appropriate for a drone because diagonal movement could produce shorter routes. However, the maze's narrow corridors create corner-cutting concerns, especially once physical clearance and localisation error matter. We therefore retained the four-connected Von Neumann neighbourhood. Horizontal and vertical unit steps make route validation straightforward and allow Manhattan distance to remain an admissible and consistent A* heuristic. This can produce longer routes with sharper turns. Moore movement could be investigated for physical flight, but it would require diagonal costs, an octile-distance heuristic and explicit clearance checks. Von Neumann gives us a simpler, verifiable starting point without treating a valid grid route as automatically safe for the drone.
 
 ## Implementation
 
